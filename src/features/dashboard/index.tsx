@@ -195,7 +195,7 @@ export function Dashboard() {
 const topNav = [
   {
     title: 'Overview',
-    href: 'dashboard/overview',
+    href: '/dashboard',
     isActive: true,
     disabled: false,
   }
