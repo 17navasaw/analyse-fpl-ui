@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -25,8 +26,14 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { Analytics } from './components/analytics'
 import { Overview } from './components/overview'
 import { RecentSales } from './components/recent-sales'
+import { fetchAnalyse } from './api/analyse'
 
 export function Dashboard() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['analyse'],
+    queryFn: fetchAnalyse,
+  })
+
   return (
     <>
       {/* ===== Top Heading ===== */}
@@ -72,22 +79,40 @@ export function Dashboard() {
                   <CardTitle>Data Table</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Column 1</TableHead>
-                        <TableHead>Column 2</TableHead>
-                        <TableHead>Column 3</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell colSpan={3} className='text-center text-muted-foreground'>
-                          No data available
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                  {isLoading ? (
+                    <div className='text-center text-muted-foreground py-4'>
+                      Loading...
+                    </div>
+                  ) : error ? (
+                    <div className='text-center text-destructive py-4'>
+                      Error loading data
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Column 1</TableHead>
+                          <TableHead>Column 2</TableHead>
+                          <TableHead>Column 3</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className='text-center text-muted-foreground'>
+                              Data loaded: Next gameweek {data.next_gameweek}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={3} className='text-center text-muted-foreground'>
+                              No data available
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </div>
