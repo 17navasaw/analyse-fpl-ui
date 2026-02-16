@@ -73,6 +73,28 @@ export function Dashboard() {
             </TabsList>
           </div>
           <TabsContent value='overview' className='space-y-4'>
+            <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+              <Card>
+                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                  <CardTitle className='text-sm font-medium'>
+                    Next Gameweek
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className='text-2xl font-bold'>{data?.next_gameweek || 'No data available'}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                  <CardTitle className='text-sm font-medium'>
+                    Past Gameweeks in Data
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className='text-2xl font-bold'>{data?.past_gameweeks[data?.past_gameweeks.length - 1] || 'No data available'}-{data?.past_gameweeks[0]}</div>
+                </CardContent>
+              </Card>
+            </div>
             <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
               <Card className='col-span-1 lg:col-span-7'>
                 <CardHeader>
