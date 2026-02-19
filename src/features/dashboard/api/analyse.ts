@@ -15,6 +15,9 @@ export interface PlayerStat {
   clean_sheets: number
   expected_assists: number
   expected_goals: number
+  goals_scored: number
+  assists: number
+  expected_goal_involvements: number
 }
 
 export interface AnalyseResponse {

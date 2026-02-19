@@ -17,6 +17,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { Analytics } from './components/analytics'
 import { DefendersTable } from './components/defenders-table'
 import { fetchAnalyse } from './api/analyse'
+import { MidfieldersTable } from './components/midfielders-table'
 
 export function Dashboard() {
   const { data, isLoading, error } = useQuery({
@@ -26,7 +27,6 @@ export function Dashboard() {
 
   return (
     <>
-      {/* ===== Top Heading ===== */}
       <Header>
         <TopNav links={topNav} />
         <div className='ms-auto flex items-center space-x-4'>
@@ -37,7 +37,6 @@ export function Dashboard() {
         </div>
       </Header>
 
-      {/* ===== Main ===== */}
       <Main>
         <div className='mb-2 flex items-center justify-between space-y-2'>
           <h1 className='text-2xl font-bold tracking-tight'>Dashboard</h1>
@@ -86,6 +85,7 @@ export function Dashboard() {
               </Card>
             </div>
             <DefendersTable data={data} isLoading={isLoading} error={error} />
+            <MidfieldersTable data={data} isLoading={isLoading} error={error} />
           </TabsContent>
           <TabsContent value='analytics' className='space-y-4'>
             <Analytics />
