@@ -21,6 +21,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -42,6 +49,7 @@ export function Dashboard() {
   const [pageSize, setPageSize] = useState(10)
   const [sortColumn, setSortColumn] = useState<keyof AggregatedPlayerStatDefender | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [selectedGameweeks, setSelectedGameweeks] = useState<string>('all')
 
   // Aggregated player stats interface
   interface AggregatedPlayerStatDefender {
@@ -60,11 +68,26 @@ export function Dashboard() {
 
   // Filter, aggregate player_stats for Defender positions
   const defenderStats = useMemo(() => {
-    if (!data?.player_stats) return []
+    if (!data?.player_stats || !data?.past_gameweeks) return []
     
+    // Determine which gameweeks to include
+    let gameweeksToInclude: number[] = []
+    if (selectedGameweeks === 'all') {
+      gameweeksToInclude = data.past_gameweeks
+    } else {
+      const numGameweeks = parseInt(selectedGameweeks, 10)
+      // Get the last X gameweeks (most recent first)
+      gameweeksToInclude = data.past_gameweeks.slice(0, numGameweeks)
+    }
+    
+    // Filter player_stats to only include selected gameweeks
     const allStats: PlayerStat[] = []
     Object.values(data.player_stats).forEach((stats) => {
-      allStats.push(...stats)
+      // Filter stats by gameweek
+      const relevantStats = stats.filter((stat) =>
+        gameweeksToInclude.includes(stat.gameweek)
+      )
+      allStats.push(...relevantStats)
     })
     
     // Filter for Defender positions (DEF or Defender)
@@ -134,7 +157,7 @@ export function Dashboard() {
 
     // Filter out players with average minutes < 45
     return aggregated.filter((player) => player.minutes >= 45)
-  }, [data])
+  }, [data, selectedGameweeks])
 
   // Sort the data
   const sortedStats = useMemo(() => {
@@ -256,7 +279,37 @@ export function Dashboard() {
             <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
               <Card className='col-span-1 lg:col-span-7'>
                 <CardHeader>
-                  <CardTitle>Defenders</CardTitle>
+                  <div className='flex items-center justify-between'>
+                    <CardTitle>Defenders</CardTitle>
+                    <div className='flex items-center gap-2'>
+                      <label className='text-sm text-muted-foreground'>
+                        Gameweeks:
+                      </label>
+                      <Select
+                        value={selectedGameweeks}
+                        onValueChange={(value) => {
+                          setSelectedGameweeks(value)
+                          setCurrentPage(1) // Reset to first page when changing gameweeks
+                        }}
+                      >
+                        <SelectTrigger className='w-full max-w-48'>
+                          <SelectValue placeholder='Select gameweeks' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='all'>All Gameweeks</SelectItem>
+                          {data?.past_gameweeks &&
+                            Array.from(
+                              { length: data.past_gameweeks.length },
+                              (_, i) => (
+                                <SelectItem key={i + 1} value={String(i + 1)}>
+                                  Past {i + 1} Gameweek{i === 0 ? '' : 's'}
+                                </SelectItem>
+                              )
+                            )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {isLoading ? (
