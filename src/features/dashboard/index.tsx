@@ -190,8 +190,68 @@ export function Dashboard() {
     return aggregated.filter((player) => player.minutes >= minMinutesValue)
   }, [data, selectedGameweeks, minMinutes, customScoreNumerator, customScoreDenominator])
 
+  // Calculate 90th percentile for each numeric field
+  const PERCENTILE_TO_HIGHLIGHT = 0.9
+  const percentiles = useMemo(() => {
+    if (defenderStats.length === 0) return {}
+
+    const numericFields: (keyof AggregatedPlayerStatDefender)[] = [
+      'event_points',
+      'minutes',
+      'expected_goals_conceded',
+      'defensive_contribution',
+      'clean_sheets',
+      'expected_assists',
+      'expected_goals',
+      'custom_score',
+    ]
+
+    const fieldsToSortReverse: Record<keyof AggregatedPlayerStatDefender, boolean> = {
+      'event_points': false,
+      'minutes': false,
+      'expected_goals_conceded': true,
+      'defensive_contribution'  : false,
+      'clean_sheets' : false,
+      'expected_assists': false,
+      'expected_goals': false,
+      'custom_score': false,
+      'gameweek_count': false,
+      'id': false,
+      'web_name': false,
+      'team_name': false,
+    }
+
+    const result: Record<string, number> = {}
+
+    numericFields.forEach((field) => {
+      console.log('field', field)
+      console.log('fieldsToSortReverse[field]', fieldsToSortReverse[field])
+      const values = defenderStats
+        .map((stat) => stat[field] as number)
+        .filter((v) => typeof v === 'number' && !isNaN(v))
+        .sort((a, b) => fieldsToSortReverse[field] ? b - a : a - b)
+
+      if (values.length > 0) {
+        const index = Math.ceil(values.length * PERCENTILE_TO_HIGHLIGHT) - 1
+        result[field] = values[Math.max(0, index)]
+      }
+    })
+
+    return result
+  }, [defenderStats])
+
+  // Helper function to check if value is at or above 90th percentile
+  const isAtOrAbove90thPercentile = (
+    field: keyof AggregatedPlayerStatDefender,
+    value: number,
+    lowerIsBetter: boolean = false,
+  ): boolean => {
+    const percentile = percentiles[field]
+    return percentile !== undefined && (lowerIsBetter ? value <= percentile: value >= percentile)
+  }
+
   // Sort the data
-  const sortedStats = useMemo(() => {
+  const sortedDefenderStats = useMemo(() => {
     if (!sortColumn) return defenderStats
 
     return [...defenderStats].sort((a, b) => {
@@ -213,10 +273,10 @@ export function Dashboard() {
   }, [defenderStats, sortColumn, sortDirection])
 
   // Calculate pagination
-  const totalPages = Math.ceil(sortedStats.length / pageSize)
+  const totalPages = Math.ceil(sortedDefenderStats.length / pageSize)
   const startIndex = (currentPage - 1) * pageSize
   const endIndex = startIndex + pageSize
-  const paginatedStats = sortedStats.slice(startIndex, endIndex)
+  const paginatedDefenderStats = sortedDefenderStats.slice(startIndex, endIndex)
 
   const handlePageChange = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)))
@@ -411,7 +471,7 @@ export function Dashboard() {
                     <div className='text-center text-destructive py-4'>
                       Error loading data
                     </div>
-                  ) : sortedStats.length === 0 ? (
+                  ) : sortedDefenderStats.length === 0 ? (
                     <div className='text-center text-muted-foreground py-4'>
                       No defender stats available
                     </div>
@@ -524,21 +584,95 @@ export function Dashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {paginatedStats.map((stat) => (
+                          {paginatedDefenderStats.map((stat) => (
                             <TableRow key={stat.id}>
                               <TableCell>{stat.web_name}</TableCell>
                               <TableCell>{stat.team_name}</TableCell>
                               {customScoreNumerator && customScoreDenominator && (
-                                <TableCell>{stat.custom_score}</TableCell>
+                                <TableCell
+                                  className={
+                                    isAtOrAbove90thPercentile('custom_score', stat.custom_score)
+                                      ? 'text-red-500'
+                                      : ''
+                                  }
+                                >
+                                  {stat.custom_score}
+                                </TableCell>
                               )}
-                              <TableCell>{stat.event_points}</TableCell>
-                              <TableCell>{stat.minutes}</TableCell>
-                              <TableCell>{stat.expected_goals_conceded}</TableCell>
-                              <TableCell>{stat.defensive_contribution}</TableCell>
-                              <TableCell>{stat.clean_sheets}</TableCell>
-                              <TableCell>{stat.expected_assists}</TableCell>
-                              <TableCell>{stat.expected_goals}</TableCell>
-                              <TableCell>{stat.gameweek_count}</TableCell>                              
+                              <TableCell
+                                className={
+                                  isAtOrAbove90thPercentile('event_points', stat.event_points)
+                                    ? 'text-red-500'
+                                    : ''
+                                }
+                              >
+                                {stat.event_points}
+                              </TableCell>
+                              <TableCell
+                                className={
+                                  isAtOrAbove90thPercentile('minutes', stat.minutes)
+                                    ? 'text-red-500'
+                                    : ''
+                                }
+                              >
+                                {stat.minutes}
+                              </TableCell>
+                              <TableCell
+                                className={
+                                  isAtOrAbove90thPercentile(
+                                    'expected_goals_conceded',
+                                    stat.expected_goals_conceded,
+                                    true,
+                                  )
+                                    ? 'text-red-500'
+                                    : ''
+                                }
+                              >
+                                {stat.expected_goals_conceded}
+                              </TableCell>
+                              <TableCell
+                                className={
+                                  isAtOrAbove90thPercentile(
+                                    'defensive_contribution',
+                                    stat.defensive_contribution
+                                  )
+                                    ? 'text-red-500'
+                                    : ''
+                                }
+                              >
+                                {stat.defensive_contribution}
+                              </TableCell>
+                              <TableCell
+                                className={
+                                  isAtOrAbove90thPercentile('clean_sheets', stat.clean_sheets)
+                                    ? 'text-red-500'
+                                    : ''
+                                }
+                              >
+                                {stat.clean_sheets}
+                              </TableCell>
+                              <TableCell
+                                className={
+                                  isAtOrAbove90thPercentile(
+                                    'expected_assists',
+                                    stat.expected_assists
+                                  )
+                                    ? 'text-red-500'
+                                    : ''
+                                }
+                              >
+                                {stat.expected_assists}
+                              </TableCell>
+                              <TableCell
+                                className={
+                                  isAtOrAbove90thPercentile('expected_goals', stat.expected_goals)
+                                    ? 'text-red-500'
+                                    : ''
+                                }
+                              >
+                                {stat.expected_goals}
+                              </TableCell>
+                              <TableCell>{stat.gameweek_count}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -555,130 +689,6 @@ export function Dashboard() {
                 </CardContent>
               </Card>
             </div>
-            {/* <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
-              <Card>
-                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                  <CardTitle className='text-sm font-medium'>
-                    Total Revenue
-                  </CardTitle>
-                  <svg
-                    xmlns='http://www.w3.org/2000/svg'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth='2'
-                    className='h-4 w-4 text-muted-foreground'
-                  >
-                    <path d='M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' />
-                  </svg>
-                </CardHeader>
-                <CardContent>
-                  <div className='text-2xl font-bold'>$45,231.89</div>
-                  <p className='text-xs text-muted-foreground'>
-                    +20.1% from last month
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                  <CardTitle className='text-sm font-medium'>
-                    Subscriptions
-                  </CardTitle>
-                  <svg
-                    xmlns='http://www.w3.org/2000/svg'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth='2'
-                    className='h-4 w-4 text-muted-foreground'
-                  >
-                    <path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' />
-                    <circle cx='9' cy='7' r='4' />
-                    <path d='M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' />
-                  </svg>
-                </CardHeader>
-                <CardContent>
-                  <div className='text-2xl font-bold'>+2350</div>
-                  <p className='text-xs text-muted-foreground'>
-                    +180.1% from last month
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                  <CardTitle className='text-sm font-medium'>Sales</CardTitle>
-                  <svg
-                    xmlns='http://www.w3.org/2000/svg'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth='2'
-                    className='h-4 w-4 text-muted-foreground'
-                  >
-                    <rect width='20' height='14' x='2' y='5' rx='2' />
-                    <path d='M2 10h20' />
-                  </svg>
-                </CardHeader>
-                <CardContent>
-                  <div className='text-2xl font-bold'>+12,234</div>
-                  <p className='text-xs text-muted-foreground'>
-                    +19% from last month
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                  <CardTitle className='text-sm font-medium'>
-                    Active Now
-                  </CardTitle>
-                  <svg
-                    xmlns='http://www.w3.org/2000/svg'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth='2'
-                    className='h-4 w-4 text-muted-foreground'
-                  >
-                    <path d='M22 12h-4l-3 9L9 3l-3 9H2' />
-                  </svg>
-                </CardHeader>
-                <CardContent>
-                  <div className='text-2xl font-bold'>+573</div>
-                  <p className='text-xs text-muted-foreground'>
-                    +201 since last hour
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-            <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
-              <Card className='col-span-1 lg:col-span-4'>
-                <CardHeader>
-                  <CardTitle>Overview</CardTitle>
-                </CardHeader>
-                <CardContent className='ps-2'>
-                  <Overview />
-                </CardContent>
-              </Card>
-              <Card className='col-span-1 lg:col-span-3'>
-                <CardHeader>
-                  <CardTitle>Recent Sales</CardTitle>
-                  <CardDescription>
-                    You made 265 sales this month.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <RecentSales />
-                </CardContent>
-              </Card>
-            </div> */}
           </TabsContent>
           <TabsContent value='analytics' className='space-y-4'>
             <Analytics />
