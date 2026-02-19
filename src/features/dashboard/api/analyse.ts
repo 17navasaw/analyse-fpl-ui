@@ -4,9 +4,15 @@ export interface PlayerStat {
   id: number
   first_name: string
   second_name: string
+  web_name: string
   gameweek: number
   total_points: number
   position: string
+  expected_goals_conceded: number
+  defensive_contribution: number
+  clean_sheets: number
+  expected_assists: number
+  expected_goals: number
 }
 
 export interface AnalyseResponse {

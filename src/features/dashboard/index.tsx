@@ -1,9 +1,9 @@
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -23,16 +23,43 @@ import { TopNav } from '@/components/layout/top-nav'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { DataTablePagination } from '@/components/data-table-pagination'
 import { Analytics } from './components/analytics'
-import { Overview } from './components/overview'
-import { RecentSales } from './components/recent-sales'
-import { fetchAnalyse } from './api/analyse'
+import { fetchAnalyse, type PlayerStat } from './api/analyse'
 
 export function Dashboard() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['analyse'],
     queryFn: fetchAnalyse,
   })
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
+  // Filter and flatten player_stats for Defender positions
+  const defenderStats = useMemo(() => {
+    if (!data?.player_stats) return []
+    
+    const allStats: PlayerStat[] = []
+    Object.values(data.player_stats).forEach((stats) => {
+      allStats.push(...stats)
+    })
+    
+    // Filter for Defender positions (DEF or Defender)
+    return allStats.filter(
+      (stat) => stat.position === 'DEF' || stat.position === 'Defender'
+    )
+  }, [data])
+
+  // Calculate pagination
+  const totalPages = Math.ceil(defenderStats.length / pageSize)
+  const startIndex = (currentPage - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const paginatedStats = defenderStats.slice(startIndex, endIndex)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+  }
 
   return (
     <>
@@ -109,31 +136,48 @@ export function Dashboard() {
                     <div className='text-center text-destructive py-4'>
                       Error loading data
                     </div>
+                  ) : defenderStats.length === 0 ? (
+                    <div className='text-center text-muted-foreground py-4'>
+                      No defender stats available
+                    </div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Column 1</TableHead>
-                          <TableHead>Column 2</TableHead>
-                          <TableHead>Column 3</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {data ? (
+                    <>
+                      <Table>
+                        <TableHeader>
                           <TableRow>
-                            <TableCell colSpan={3} className='text-center text-muted-foreground'>
-                              Data loaded: Next gameweek {data.next_gameweek}
-                            </TableCell>
+                            <TableHead>Web Name</TableHead>
+                            <TableHead>Gameweek</TableHead>
+                            <TableHead>Total Points</TableHead>
+                            <TableHead>Expected Goals Conceded</TableHead>
+                            <TableHead>Defensive Contribution</TableHead>
+                            <TableHead>Clean Sheets</TableHead>
+                            <TableHead>Expected Assists</TableHead>
+                            <TableHead>Expected Goals</TableHead>
                           </TableRow>
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={3} className='text-center text-muted-foreground'>
-                              No data available
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedStats.map((stat, index) => (
+                            <TableRow key={`${stat.id}-${stat.gameweek}-${index}`}>
+                              <TableCell>{stat.web_name}</TableCell>
+                              <TableCell>{stat.gameweek}</TableCell>
+                              <TableCell>{stat.total_points}</TableCell>
+                              <TableCell>{stat.expected_goals_conceded}</TableCell>
+                              <TableCell>{stat.defensive_contribution}</TableCell>
+                              <TableCell>{stat.clean_sheets}</TableCell>
+                              <TableCell>{stat.expected_assists}</TableCell>
+                              <TableCell>{stat.expected_goals}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <DataTablePagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        pageSize={pageSize}
+                        onPageChange={handlePageChange}
+                        onPageSizeChange={setPageSize}
+                      />
+                    </>
                   )}
                 </CardContent>
               </Card>

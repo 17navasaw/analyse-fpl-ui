@@ -90,7 +90,6 @@ const AuthenticatedDashboardIndexRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AuthenticatedIndexRoute
   '/forgot-password': typeof authForgotPasswordRoute
   '/otp': typeof authOtpRoute
   '/sign-in': typeof authSignInRoute
@@ -101,7 +100,8 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
-  '/dashboard/': typeof AuthenticatedDashboardIndexRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/dashboard': typeof AuthenticatedDashboardIndexRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof authForgotPasswordRoute
@@ -136,7 +136,6 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | '/forgot-password'
     | '/otp'
     | '/sign-in'
@@ -147,7 +146,8 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
-    | '/dashboard/'
+    | '/'
+    | '/dashboard'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -198,7 +198,7 @@ declare module '@tanstack/react-router' {
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
-      fullPath: '/'
+      fullPath: ''
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -282,7 +282,7 @@ declare module '@tanstack/react-router' {
     '/_authenticated/dashboard/': {
       id: '/_authenticated/dashboard/'
       path: '/dashboard'
-      fullPath: '/dashboard/'
+      fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
