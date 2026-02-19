@@ -5,9 +5,11 @@ export interface PlayerStat {
   first_name: string
   second_name: string
   web_name: string
+  team_name: string
   gameweek: number
   total_points: number
   position: string
+  minutes: number
   expected_goals_conceded: number
   defensive_contribution: number
   clean_sheets: number

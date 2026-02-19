@@ -1,5 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CaretSortIcon,
+} from '@radix-ui/react-icons'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -35,8 +40,25 @@ export function Dashboard() {
 
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [sortColumn, setSortColumn] = useState<keyof AggregatedPlayerStatDefender | null>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  // Filter and flatten player_stats for Defender positions
+  // Aggregated player stats interface
+  interface AggregatedPlayerStatDefender {
+    id: number
+    web_name: string
+    team_name: string
+    total_points: number
+    minutes: number
+    expected_goals_conceded: number
+    defensive_contribution: number
+    clean_sheets: number
+    expected_assists: number
+    expected_goals: number
+    gameweek_count: number
+  }
+
+  // Filter, aggregate player_stats for Defender positions
   const defenderStats = useMemo(() => {
     if (!data?.player_stats) return []
     
@@ -46,19 +68,128 @@ export function Dashboard() {
     })
     
     // Filter for Defender positions (DEF or Defender)
-    return allStats.filter(
+    const defenderStats = allStats.filter(
       (stat) => stat.position === 'DEF' || stat.position === 'Defender'
     )
+
+    // Group by player id and calculate averages
+    const playerMap = new Map<number, {
+      id: number
+      web_name: string
+      team_name: string
+      total_points: number[]
+      minutes: number[]
+      expected_goals_conceded: number[]
+      defensive_contribution: number[]
+      clean_sheets: number[]
+      expected_assists: number[]
+      expected_goals: number[]
+    }>()
+
+    defenderStats.forEach((stat) => {
+      const existing = playerMap.get(stat.id)
+      if (existing) {
+        existing.total_points.push(stat.total_points)
+        existing.minutes.push(stat.minutes)
+        existing.expected_goals_conceded.push(stat.expected_goals_conceded)
+        existing.defensive_contribution.push(stat.defensive_contribution)
+        existing.clean_sheets.push(stat.clean_sheets)
+        existing.expected_assists.push(stat.expected_assists)
+        existing.expected_goals.push(stat.expected_goals)
+      } else {
+        playerMap.set(stat.id, {
+          id: stat.id,
+          web_name: stat.web_name,
+          team_name: stat.team_name,
+          total_points: [stat.total_points],
+          minutes: [stat.minutes],
+          expected_goals_conceded: [stat.expected_goals_conceded],
+          defensive_contribution: [stat.defensive_contribution],
+          clean_sheets: [stat.clean_sheets],
+          expected_assists: [stat.expected_assists],
+          expected_goals: [stat.expected_goals],
+        })
+      }
+    })
+
+    // Calculate averages for each player
+    const aggregated: AggregatedPlayerStatDefender[] = Array.from(playerMap.values()).map((player) => {
+      const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
+      const avg = (arr: number[]) => sum(arr) / arr.length
+
+      return {
+        id: player.id,
+        web_name: player.web_name,
+        team_name: player.team_name,
+        total_points: Number(avg(player.total_points).toFixed(2)),
+        minutes: Number(avg(player.minutes).toFixed(2)),
+        expected_goals_conceded: Number(avg(player.expected_goals_conceded).toFixed(2)),
+        defensive_contribution: Number(avg(player.defensive_contribution).toFixed(2)),
+        clean_sheets: Number(avg(player.clean_sheets).toFixed(2)),
+        expected_assists: Number(avg(player.expected_assists).toFixed(2)),
+        expected_goals: Number(avg(player.expected_goals).toFixed(2)),
+        gameweek_count: player.total_points.length,
+      }
+    })
+
+    // Filter out players with average minutes < 45
+    return aggregated.filter((player) => player.minutes >= 45)
   }, [data])
 
+  // Sort the data
+  const sortedStats = useMemo(() => {
+    if (!sortColumn) return defenderStats
+
+    return [...defenderStats].sort((a, b) => {
+      const aValue = a[sortColumn]
+      const bValue = b[sortColumn]
+
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc'
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue)
+      }
+
+      return 0
+    })
+  }, [defenderStats, sortColumn, sortDirection])
+
   // Calculate pagination
-  const totalPages = Math.ceil(defenderStats.length / pageSize)
+  const totalPages = Math.ceil(sortedStats.length / pageSize)
   const startIndex = (currentPage - 1) * pageSize
   const endIndex = startIndex + pageSize
-  const paginatedStats = defenderStats.slice(startIndex, endIndex)
+  const paginatedStats = sortedStats.slice(startIndex, endIndex)
 
   const handlePageChange = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+  }
+
+  const handleSort = (column: keyof AggregatedPlayerStatDefender) => {
+    if (sortColumn === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // Set new column and default to ascending
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+    // Reset to first page when sorting changes
+    setCurrentPage(1)
+  }
+
+  const getSortIcon = (column: keyof AggregatedPlayerStatDefender) => {
+    if (sortColumn !== column) {
+      return <CaretSortIcon className='ms-2 h-4 w-4 opacity-50' />
+    }
+    return sortDirection === 'asc' ? (
+      <ArrowUpIcon className='ms-2 h-4 w-4' />
+    ) : (
+      <ArrowDownIcon className='ms-2 h-4 w-4' />
+    )
   }
 
   return (
@@ -125,7 +256,7 @@ export function Dashboard() {
             <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
               <Card className='col-span-1 lg:col-span-7'>
                 <CardHeader>
-                  <CardTitle>Data Table</CardTitle>
+                  <CardTitle>Defenders</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {isLoading ? (
@@ -136,7 +267,7 @@ export function Dashboard() {
                     <div className='text-center text-destructive py-4'>
                       Error loading data
                     </div>
-                  ) : defenderStats.length === 0 ? (
+                  ) : sortedStats.length === 0 ? (
                     <div className='text-center text-muted-foreground py-4'>
                       No defender stats available
                     </div>
@@ -145,27 +276,111 @@ export function Dashboard() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Web Name</TableHead>
-                            <TableHead>Gameweek</TableHead>
-                            <TableHead>Total Points</TableHead>
-                            <TableHead>Expected Goals Conceded</TableHead>
-                            <TableHead>Defensive Contribution</TableHead>
-                            <TableHead>Clean Sheets</TableHead>
-                            <TableHead>Expected Assists</TableHead>
-                            <TableHead>Expected Goals</TableHead>
+                            <TableHead>
+                              <button
+                                onClick={() => handleSort('web_name')}
+                                className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
+                              >
+                                Web Name
+                                {getSortIcon('web_name')}
+                              </button>
+                            </TableHead>
+                            <TableHead>
+                              <button
+                                onClick={() => handleSort('team_name')}
+                                className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
+                              >
+                                Team Name
+                                {getSortIcon('team_name')}
+                              </button>
+                            </TableHead>
+                            <TableHead>
+                              <button
+                                onClick={() => handleSort('total_points')}
+                                className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
+                              >
+                                Total Points (Avg)
+                                {getSortIcon('total_points')}
+                              </button>
+                            </TableHead>
+                            <TableHead>
+                              <button
+                                onClick={() => handleSort('minutes')}
+                                className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
+                              >
+                                Minutes (Avg)
+                                {getSortIcon('minutes')}
+                              </button>
+                            </TableHead>
+                            <TableHead>
+                              <button
+                                onClick={() => handleSort('expected_goals_conceded')}
+                                className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
+                              >
+                                Expected Goals Conceded (Avg)
+                                {getSortIcon('expected_goals_conceded')}
+                              </button>
+                            </TableHead>
+                            <TableHead>
+                              <button
+                                onClick={() => handleSort('defensive_contribution')}
+                                className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
+                              >
+                                Defensive Contribution (Avg)
+                                {getSortIcon('defensive_contribution')}
+                              </button>
+                            </TableHead>
+                            <TableHead>
+                              <button
+                                onClick={() => handleSort('clean_sheets')}
+                                className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
+                              >
+                                Clean Sheets (Avg)
+                                {getSortIcon('clean_sheets')}
+                              </button>
+                            </TableHead>
+                            <TableHead>
+                              <button
+                                onClick={() => handleSort('expected_assists')}
+                                className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
+                              >
+                                Expected Assists (Avg)
+                                {getSortIcon('expected_assists')}
+                              </button>
+                            </TableHead>
+                            <TableHead>
+                              <button
+                                onClick={() => handleSort('expected_goals')}
+                                className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
+                              >
+                                Expected Goals (Avg)
+                                {getSortIcon('expected_goals')}
+                              </button>
+                            </TableHead>
+                            <TableHead>
+                              <button
+                                onClick={() => handleSort('gameweek_count')}
+                                className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
+                              >
+                                Gameweeks
+                                {getSortIcon('gameweek_count')}
+                              </button>
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {paginatedStats.map((stat, index) => (
-                            <TableRow key={`${stat.id}-${stat.gameweek}-${index}`}>
+                          {paginatedStats.map((stat) => (
+                            <TableRow key={stat.id}>
                               <TableCell>{stat.web_name}</TableCell>
-                              <TableCell>{stat.gameweek}</TableCell>
+                              <TableCell>{stat.team_name}</TableCell>
                               <TableCell>{stat.total_points}</TableCell>
+                              <TableCell>{stat.minutes}</TableCell>
                               <TableCell>{stat.expected_goals_conceded}</TableCell>
                               <TableCell>{stat.defensive_contribution}</TableCell>
                               <TableCell>{stat.clean_sheets}</TableCell>
                               <TableCell>{stat.expected_assists}</TableCell>
                               <TableCell>{stat.expected_goals}</TableCell>
+                              <TableCell>{stat.gameweek_count}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
