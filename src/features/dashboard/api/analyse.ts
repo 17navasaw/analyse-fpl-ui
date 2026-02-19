@@ -7,7 +7,7 @@ export interface PlayerStat {
   web_name: string
   team_name: string
   gameweek: number
-  total_points: number
+  event_points: number
   position: string
   minutes: number
   expected_goals_conceded: number

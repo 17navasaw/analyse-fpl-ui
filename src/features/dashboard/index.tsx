@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -50,13 +51,16 @@ export function Dashboard() {
   const [sortColumn, setSortColumn] = useState<keyof AggregatedPlayerStatDefender | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [selectedGameweeks, setSelectedGameweeks] = useState<string>('all')
+  const [minMinutes, setMinMinutes] = useState<string>('45')
+  const [customScoreNumerator, setCustomScoreNumerator] = useState<string>('event_points')
+  const [customScoreDenominator, setCustomScoreDenominator] = useState<string>('expected_goals_conceded')
 
   // Aggregated player stats interface
   interface AggregatedPlayerStatDefender {
     id: number
     web_name: string
     team_name: string
-    total_points: number
+    event_points: number
     minutes: number
     expected_goals_conceded: number
     defensive_contribution: number
@@ -64,7 +68,22 @@ export function Dashboard() {
     expected_assists: number
     expected_goals: number
     gameweek_count: number
+    custom_score: number
   }
+
+  // Available numeric columns for custom score calculation
+  const numericColumns: Array<{
+    key: keyof AggregatedPlayerStatDefender
+    label: string
+  }> = [
+    { key: 'event_points', label: 'Event Points (Avg)' },
+    { key: 'minutes', label: 'Minutes (Avg)' },
+    { key: 'expected_goals_conceded', label: 'Expected Goals Conceded (Avg)' },
+    { key: 'defensive_contribution', label: 'Defensive Contribution (Avg)' },
+    { key: 'clean_sheets', label: 'Clean Sheets (Avg)' },
+    { key: 'expected_assists', label: 'Expected Assists (Avg)' },
+    { key: 'expected_goals', label: 'Expected Goals (Avg)' },
+  ]
 
   // Filter, aggregate player_stats for Defender positions
   const defenderStats = useMemo(() => {
@@ -100,7 +119,7 @@ export function Dashboard() {
       id: number
       web_name: string
       team_name: string
-      total_points: number[]
+      event_points: number[]
       minutes: number[]
       expected_goals_conceded: number[]
       defensive_contribution: number[]
@@ -112,7 +131,7 @@ export function Dashboard() {
     defenderStats.forEach((stat) => {
       const existing = playerMap.get(stat.id)
       if (existing) {
-        existing.total_points.push(stat.total_points)
+        existing.event_points.push(stat.event_points)
         existing.minutes.push(stat.minutes)
         existing.expected_goals_conceded.push(stat.expected_goals_conceded)
         existing.defensive_contribution.push(stat.defensive_contribution)
@@ -124,7 +143,7 @@ export function Dashboard() {
           id: stat.id,
           web_name: stat.web_name,
           team_name: stat.team_name,
-          total_points: [stat.total_points],
+          event_points: [stat.event_points],
           minutes: [stat.minutes],
           expected_goals_conceded: [stat.expected_goals_conceded],
           defensive_contribution: [stat.defensive_contribution],
@@ -140,24 +159,36 @@ export function Dashboard() {
       const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
       const avg = (arr: number[]) => sum(arr) / arr.length
 
-      return {
+      const playerData = {
         id: player.id,
         web_name: player.web_name,
         team_name: player.team_name,
-        total_points: Number(avg(player.total_points).toFixed(2)),
+        event_points: Number(avg(player.event_points).toFixed(2)),
         minutes: Number(avg(player.minutes).toFixed(2)),
         expected_goals_conceded: Number(avg(player.expected_goals_conceded).toFixed(2)),
         defensive_contribution: Number(avg(player.defensive_contribution).toFixed(2)),
         clean_sheets: Number(avg(player.clean_sheets).toFixed(2)),
         expected_assists: Number(avg(player.expected_assists).toFixed(2)),
         expected_goals: Number(avg(player.expected_goals).toFixed(2)),
-        gameweek_count: player.total_points.length,
+        gameweek_count: player.event_points.length,
+        custom_score: 0,
       }
+
+      // Calculate custom score if both numerator and denominator are selected
+      if (customScoreNumerator && customScoreDenominator) {
+        const numerator = playerData[customScoreNumerator as keyof AggregatedPlayerStatDefender] as number
+        const denominator = playerData[customScoreDenominator as keyof AggregatedPlayerStatDefender] as number
+        playerData.custom_score =
+          denominator !== 0 ? Number((numerator / denominator).toFixed(4)) : 0
+      }
+
+      return playerData
     })
 
-    // Filter out players with average minutes < 45
-    return aggregated.filter((player) => player.minutes >= 45)
-  }, [data, selectedGameweeks])
+    // Filter out players with average minutes below minimum
+    const minMinutesValue = parseFloat(minMinutes) || 45
+    return aggregated.filter((player) => player.minutes >= minMinutesValue)
+  }, [data, selectedGameweeks, minMinutes, customScoreNumerator, customScoreDenominator])
 
   // Sort the data
   const sortedStats = useMemo(() => {
@@ -281,33 +312,93 @@ export function Dashboard() {
                 <CardHeader>
                   <div className='flex items-center justify-between'>
                     <CardTitle>Defenders</CardTitle>
-                    <div className='flex items-center gap-2'>
-                      <label className='text-sm text-muted-foreground'>
-                        Gameweeks:
-                      </label>
-                      <Select
-                        value={selectedGameweeks}
-                        onValueChange={(value) => {
-                          setSelectedGameweeks(value)
-                          setCurrentPage(1) // Reset to first page when changing gameweeks
-                        }}
-                      >
-                        <SelectTrigger className='w-full max-w-48'>
-                          <SelectValue placeholder='Select gameweeks' />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value='all'>All Gameweeks</SelectItem>
-                          {data?.past_gameweeks &&
-                            Array.from(
-                              { length: data.past_gameweeks.length },
-                              (_, i) => (
-                                <SelectItem key={i + 1} value={String(i + 1)}>
-                                  Past {i + 1} Gameweek{i === 0 ? '' : 's'}
-                                </SelectItem>
-                              )
-                            )}
-                        </SelectContent>
-                      </Select>
+                    <div className='flex items-center gap-4'>
+                      <div className='flex items-center gap-2'>
+                        <label className='text-sm text-muted-foreground'>
+                          Gameweeks:
+                        </label>
+                        <Select
+                          value={selectedGameweeks}
+                          onValueChange={(value) => {
+                            setSelectedGameweeks(value)
+                            setCurrentPage(1) // Reset to first page when changing gameweeks
+                          }}
+                        >
+                          <SelectTrigger className='w-full max-w-48'>
+                            <SelectValue placeholder='Select gameweeks' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='all'>All Gameweeks</SelectItem>
+                            {data?.past_gameweeks &&
+                              Array.from(
+                                { length: data.past_gameweeks.length },
+                                (_, i) => (
+                                  <SelectItem key={i + 1} value={String(i + 1)}>
+                                    Past {i + 1} Gameweek{i === 0 ? '' : 's'}
+                                  </SelectItem>
+                                )
+                              )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className='flex items-center gap-2'>
+                        <label className='text-sm text-muted-foreground'>
+                          Min Minutes:
+                        </label>
+                        <Input
+                          type='number'
+                          value={minMinutes}
+                          onChange={(e) => {
+                            setMinMinutes(e.target.value)
+                            setCurrentPage(1) // Reset to first page when changing filter
+                          }}
+                          placeholder='45'
+                          className='w-20'
+                          min='0'
+                        />
+                      </div>
+                      <div className='flex items-center gap-2'>
+                        <label className='text-sm text-muted-foreground'>
+                          Custom Score:
+                        </label>
+                        <Select
+                          value={customScoreNumerator}
+                          onValueChange={(value) => {
+                            setCustomScoreNumerator(value)
+                            setCurrentPage(1)
+                          }}
+                        >
+                          <SelectTrigger className='w-full max-w-48'>
+                            <SelectValue placeholder='Numerator' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {numericColumns.map((col) => (
+                              <SelectItem key={col.key} value={col.key}>
+                                {col.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <span className='text-sm text-muted-foreground'>/</span>
+                        <Select
+                          value={customScoreDenominator}
+                          onValueChange={(value) => {
+                            setCustomScoreDenominator(value)
+                            setCurrentPage(1)
+                          }}
+                        >
+                          <SelectTrigger className='w-full max-w-48'>
+                            <SelectValue placeholder='Denominator' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {numericColumns.map((col) => (
+                              <SelectItem key={col.key} value={col.key}>
+                                {col.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -347,13 +438,24 @@ export function Dashboard() {
                                 {getSortIcon('team_name')}
                               </button>
                             </TableHead>
+                            {customScoreNumerator && customScoreDenominator && (
+                              <TableHead>
+                                <button
+                                  onClick={() => handleSort('custom_score')}
+                                  className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
+                                >
+                                  Custom Score
+                                  {getSortIcon('custom_score')}
+                                </button>
+                              </TableHead>
+                            )}
                             <TableHead>
                               <button
-                                onClick={() => handleSort('total_points')}
+                                onClick={() => handleSort('event_points')}
                                 className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
                               >
-                                Total Points (Avg)
-                                {getSortIcon('total_points')}
+                                Event Points (Avg)
+                                {getSortIcon('event_points')}
                               </button>
                             </TableHead>
                             <TableHead>
@@ -426,14 +528,17 @@ export function Dashboard() {
                             <TableRow key={stat.id}>
                               <TableCell>{stat.web_name}</TableCell>
                               <TableCell>{stat.team_name}</TableCell>
-                              <TableCell>{stat.total_points}</TableCell>
+                              {customScoreNumerator && customScoreDenominator && (
+                                <TableCell>{stat.custom_score}</TableCell>
+                              )}
+                              <TableCell>{stat.event_points}</TableCell>
                               <TableCell>{stat.minutes}</TableCell>
                               <TableCell>{stat.expected_goals_conceded}</TableCell>
                               <TableCell>{stat.defensive_contribution}</TableCell>
                               <TableCell>{stat.clean_sheets}</TableCell>
                               <TableCell>{stat.expected_assists}</TableCell>
                               <TableCell>{stat.expected_goals}</TableCell>
-                              <TableCell>{stat.gameweek_count}</TableCell>
+                              <TableCell>{stat.gameweek_count}</TableCell>                              
                             </TableRow>
                           ))}
                         </TableBody>
