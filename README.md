@@ -99,3 +99,15 @@ Start the server
 ```bash
   npx vite dev
 ```
+
+## Build for Production
+
+```bash
+  npm run build
+```
+By default, the build output will be placed at dist. You may deploy this dist folder to any of your preferred platforms.
+
+Run Preview
+```bash
+  npm run preview
+```
