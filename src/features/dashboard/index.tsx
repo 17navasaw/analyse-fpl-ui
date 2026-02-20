@@ -18,6 +18,7 @@ import { Analytics } from './components/analytics'
 import { DefendersTable } from './components/defenders-table'
 import { fetchAnalyse } from './api/analyse'
 import { MidfieldersTable } from './components/midfielders-table'
+import { ForwardsTable } from './components/forwards-table'
 
 export function Dashboard() {
   const { data, isLoading, error } = useQuery({
@@ -86,6 +87,7 @@ export function Dashboard() {
             </div>
             <DefendersTable data={data} isLoading={isLoading} error={error} />
             <MidfieldersTable data={data} isLoading={isLoading} error={error} />
+            <ForwardsTable data={data} isLoading={isLoading} error={error} />
           </TabsContent>
           <TabsContent value='analytics' className='space-y-4'>
             <Analytics />
