@@ -407,7 +407,7 @@ export function DefendersTable({ data, isLoading, error }: DefendersTableProps) 
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>
+                    <TableHead className='sticky left-0 z-10 bg-background border-r'>
                       <button
                         onClick={() => handleSort('web_name')}
                         className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
@@ -416,7 +416,7 @@ export function DefendersTable({ data, isLoading, error }: DefendersTableProps) 
                         {getSortIcon('web_name')}
                       </button>
                     </TableHead>
-                    <TableHead>
+                    <TableHead className='sticky left-[100px] z-10 bg-background border-r'>
                       <button
                         onClick={() => handleSort('team_name')}
                         className='flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer'
@@ -513,8 +513,8 @@ export function DefendersTable({ data, isLoading, error }: DefendersTableProps) 
                 <TableBody>
                   {paginatedDefenderStats.map((stat) => (
                     <TableRow key={stat.id}>
-                      <TableCell>{stat.web_name}</TableCell>
-                      <TableCell>{stat.team_name}</TableCell>
+                      <TableCell className='sticky left-0 z-10 bg-background border-r'>{stat.web_name}</TableCell>
+                      <TableCell className='sticky left-[100px] z-10 bg-background border-r'>{stat.team_name}</TableCell>
                       {customScoreNumerator && customScoreDenominator && (
                         <TableCell
                           className={
