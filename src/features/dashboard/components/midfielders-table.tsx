@@ -412,7 +412,7 @@ export function MidfieldersTable({ data, isLoading, error }: MidfieldersTablePro
             </div>
           ) : sortedMidfielderStats.length === 0 ? (
             <div className='text-center text-muted-foreground py-4'>
-              No defender stats available
+              No midfielder stats available
             </div>
           ) : (
             <>

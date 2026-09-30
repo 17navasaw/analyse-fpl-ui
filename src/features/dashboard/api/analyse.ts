@@ -22,11 +22,22 @@ export interface PlayerStat {
 
 export interface AnalyseResponse {
   past_gameweeks: number[]
-  next_gameweek: number
+  next_gameweek: number | null
   player_stats: Record<string, PlayerStat[]>
 }
 
-export async function fetchAnalyse(): Promise<AnalyseResponse> {
-  const response = await apiClient.get<AnalyseResponse>('/analyse')
+export async function fetchSeasons(signal?: AbortSignal): Promise<string[]> {
+  const response = await apiClient.get<string[]>('/seasons', { signal })
+  return response.data
+}
+
+export async function fetchAnalyse(
+  season: string,
+  signal?: AbortSignal
+): Promise<AnalyseResponse> {
+  const response = await apiClient.get<AnalyseResponse>('/analyse', {
+    params: { season },
+    signal,
+  })
   return response.data
 }
