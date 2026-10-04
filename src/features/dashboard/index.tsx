@@ -10,16 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ConfigDrawer } from '@/components/config-drawer'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
-import { TopNav } from '@/components/layout/top-nav'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { fetchAnalyse, fetchSeasons } from './api/analyse'
-import { Analytics } from './components/analytics'
 import { DefendersTable } from './components/defenders-table'
 import { ForwardsTable } from './components/forwards-table'
 import { MidfieldersTable } from './components/midfielders-table'
@@ -62,166 +56,124 @@ export function Dashboard() {
   return (
     <>
       <Header>
-        <TopNav links={topNav} />
         <div className='ms-auto flex items-center space-x-4'>
-          <Search />
           <ThemeSwitch />
-          <ConfigDrawer />
-          <ProfileDropdown />
         </div>
       </Header>
 
       <Main>
-        <div className='mb-2 flex items-center justify-between space-y-2'>
-          <h1 className='text-2xl font-bold tracking-tight'>Dashboard</h1>
-          <div className='flex items-center space-x-2'>
-            <Button>Download</Button>
+        <h1 className='mb-6 text-2xl font-bold tracking-tight'>FPL Overview</h1>
+        <div className='space-y-4'>
+          <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
+            <Label htmlFor='dashboard-season'>Season</Label>
+            <Select
+              value={season ?? ''}
+              onValueChange={setRequestedSeason}
+              disabled={
+                seasonsQuery.isPending || seasonsQuery.isError || !season
+              }
+            >
+              <SelectTrigger id='dashboard-season' className='w-full sm:w-48'>
+                <SelectValue
+                  placeholder={
+                    seasonsQuery.isPending
+                      ? 'Loading seasons...'
+                      : seasonsQuery.isError
+                        ? 'Seasons unavailable'
+                        : 'No seasons available'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {seasons.map((availableSeason) => (
+                  <SelectItem key={availableSeason} value={availableSeason}>
+                    {availableSeason}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </div>
-        <Tabs
-          orientation='vertical'
-          defaultValue='overview'
-          className='space-y-4'
-        >
-          <div className='w-full overflow-x-auto pb-2'>
-            <TabsList>
-              <TabsTrigger value='overview'>Overview</TabsTrigger>
-              <TabsTrigger value='analytics'>Analytics</TabsTrigger>
-              <TabsTrigger value='reports' disabled>
-                Reports
-              </TabsTrigger>
-              <TabsTrigger value='notifications' disabled>
-                Notifications
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value='overview' className='space-y-4'>
-            <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
-              <Label htmlFor='dashboard-season'>Season</Label>
-              <Select
-                value={season ?? ''}
-                onValueChange={setRequestedSeason}
-                disabled={
-                  seasonsQuery.isPending || seasonsQuery.isError || !season
-                }
+          {seasonsQuery.isPending ? (
+            <p role='status' className='text-muted-foreground'>
+              Loading seasons...
+            </p>
+          ) : seasonsQuery.isError ? (
+            <div role='alert' className='flex flex-wrap items-center gap-2'>
+              <p className='text-destructive'>Unable to load seasons.</p>
+              <Button
+                variant='outline'
+                disabled={seasonsQuery.isFetching}
+                onClick={() => void seasonsQuery.refetch()}
               >
-                <SelectTrigger id='dashboard-season' className='w-full sm:w-48'>
-                  <SelectValue
-                    placeholder={
-                      seasonsQuery.isPending
-                        ? 'Loading seasons...'
-                        : seasonsQuery.isError
-                          ? 'Seasons unavailable'
-                          : 'No seasons available'
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {seasons.map((availableSeason) => (
-                    <SelectItem key={availableSeason} value={availableSeason}>
-                      {availableSeason}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                Retry
+              </Button>
             </div>
-            {seasonsQuery.isPending ? (
-              <p role='status' className='text-muted-foreground'>
-                Loading seasons...
-              </p>
-            ) : seasonsQuery.isError ? (
-              <div role='alert' className='flex flex-wrap items-center gap-2'>
-                <p className='text-destructive'>Unable to load seasons.</p>
-                <Button
-                  variant='outline'
-                  disabled={seasonsQuery.isFetching}
-                  onClick={() => void seasonsQuery.refetch()}
-                >
-                  Retry
-                </Button>
-              </div>
-            ) : !season ? (
-              <p role='status' className='text-muted-foreground'>
-                No seasons available.
-              </p>
-            ) : (
-              <>
-                {error && (
-                  <div
-                    role='alert'
-                    className='flex flex-wrap items-center gap-2'
+          ) : !season ? (
+            <p role='status' className='text-muted-foreground'>
+              No seasons available.
+            </p>
+          ) : (
+            <>
+              {error && (
+                <div role='alert' className='flex flex-wrap items-center gap-2'>
+                  <p className='text-destructive'>
+                    Unable to load data for {season}.
+                  </p>
+                  <Button
+                    variant='outline'
+                    disabled={analysisQuery.isFetching}
+                    onClick={() => void analysisQuery.refetch()}
                   >
-                    <p className='text-destructive'>
-                      Unable to load data for {season}.
-                    </p>
-                    <Button
-                      variant='outline'
-                      disabled={analysisQuery.isFetching}
-                      onClick={() => void analysisQuery.refetch()}
-                    >
-                      Retry
-                    </Button>
-                  </div>
-                )}
-                <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium'>
-                        Next Gameweek
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>
-                        {data?.next_gameweek ?? summaryPlaceholder}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium'>
-                        Past Gameweeks in Data
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>{gameweekRange}</div>
-                    </CardContent>
-                  </Card>
+                    Retry
+                  </Button>
                 </div>
-                <DefendersTable
-                  key={`defenders-${season}`}
-                  data={data}
-                  isLoading={isLoading}
-                  error={error}
-                />
-                <MidfieldersTable
-                  key={`midfielders-${season}`}
-                  data={data}
-                  isLoading={isLoading}
-                  error={error}
-                />
-                <ForwardsTable
-                  key={`forwards-${season}`}
-                  data={data}
-                  isLoading={isLoading}
-                  error={error}
-                />
-              </>
-            )}
-          </TabsContent>
-          <TabsContent value='analytics' className='space-y-4'>
-            <Analytics />
-          </TabsContent>
-        </Tabs>
+              )}
+              <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+                <Card>
+                  <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                    <CardTitle className='text-sm font-medium'>
+                      Next Gameweek
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className='text-2xl font-bold'>
+                      {data?.next_gameweek ?? summaryPlaceholder}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                    <CardTitle className='text-sm font-medium'>
+                      Past Gameweeks in Data
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className='text-2xl font-bold'>{gameweekRange}</div>
+                  </CardContent>
+                </Card>
+              </div>
+              <DefendersTable
+                key={`defenders-${season}`}
+                data={data}
+                isLoading={isLoading}
+                error={error}
+              />
+              <MidfieldersTable
+                key={`midfielders-${season}`}
+                data={data}
+                isLoading={isLoading}
+                error={error}
+              />
+              <ForwardsTable
+                key={`forwards-${season}`}
+                data={data}
+                isLoading={isLoading}
+                error={error}
+              />
+            </>
+          )}
+        </div>
       </Main>
     </>
   )
 }
-
-const topNav = [
-  {
-    title: 'Overview',
-    href: '/dashboard',
-    isActive: true,
-    disabled: false,
-  },
-]
